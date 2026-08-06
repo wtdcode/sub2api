@@ -164,33 +164,43 @@ func openAIContextLengthSortValue(account *Account) int {
 	return limit
 }
 
-// partitionOpenAICandidatesByContextLength 将候选按声明的上下文窗口升序分层：
-// 窗口小且够用的账号排前（把大窗口容量留给长请求），未声明窗口的账号排最后。
-// 层内维持调用方的原有顺序，由上层继续做 score/priority 排序。
+// partitionOpenAICandidatesByContextLength 将候选按（调度优先级升序, 声明窗口升序）
+// 分层：显式设置的账号优先级（数字小者先）压过窗口偏好——管理员意图第一；同优先级
+// 内窗口小且够用的账号排前（把大窗口容量留给长请求），未声明窗口的排该优先级组最后。
+// 层内维持调用方的原有顺序，由上层继续做 score 排序。
 // estimatedTokens<=0 时不分层，原样返回单层。
 func partitionOpenAICandidatesByContextLength(estimatedTokens int, pool []openAIAccountCandidateScore) [][]openAIAccountCandidateScore {
 	if estimatedTokens <= 0 || len(pool) == 0 {
 		return [][]openAIAccountCandidateScore{pool}
 	}
-	byLimit := make(map[int][]openAIAccountCandidateScore)
-	for _, candidate := range pool {
-		limit := candidate.account.GetContextLength()
-		if limit <= 0 {
-			limit = int(^uint(0) >> 1) // 未声明 → 视为最大窗口，排最后一层
-		}
-		byLimit[limit] = append(byLimit[limit], candidate)
+	type tierKey struct {
+		priority int
+		limit    int
 	}
-	if len(byLimit) <= 1 {
+	byKey := make(map[tierKey][]openAIAccountCandidateScore)
+	for _, candidate := range pool {
+		key := tierKey{
+			priority: candidate.priority,
+			limit:    openAIContextLengthSortValue(candidate.account),
+		}
+		byKey[key] = append(byKey[key], candidate)
+	}
+	if len(byKey) <= 1 {
 		return [][]openAIAccountCandidateScore{pool}
 	}
-	limits := make([]int, 0, len(byLimit))
-	for limit := range byLimit {
-		limits = append(limits, limit)
+	keys := make([]tierKey, 0, len(byKey))
+	for key := range byKey {
+		keys = append(keys, key)
 	}
-	sort.Ints(limits)
-	tiers := make([][]openAIAccountCandidateScore, 0, len(limits))
-	for _, limit := range limits {
-		tiers = append(tiers, byLimit[limit])
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].priority != keys[j].priority {
+			return keys[i].priority < keys[j].priority
+		}
+		return keys[i].limit < keys[j].limit
+	})
+	tiers := make([][]openAIAccountCandidateScore, 0, len(keys))
+	for _, key := range keys {
+		tiers = append(tiers, byKey[key])
 	}
 	return tiers
 }

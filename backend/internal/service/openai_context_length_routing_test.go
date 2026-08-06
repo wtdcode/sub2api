@@ -205,3 +205,26 @@ func TestOpenAIScheduler_ContextLengthSpillsWhenPreferredSaturated(t *testing.T)
 		}
 	}
 }
+
+// 显式优先级压过窗口偏好：1M 账号 priority 更高（数字更小）时，短请求应优先去 1M；
+// 平级场景的小窗口优先由 PrefersSmallestSufficientWindow 用例钉住。
+func TestOpenAIScheduler_ExplicitPriorityOverridesWindowPreference(t *testing.T) {
+	resetOpenAIAdvancedSchedulerSettingCacheForTest()
+	groupID := int64(92006)
+	accounts := contextLengthTestAccounts()
+	accounts[0].Priority = 50 // 256k
+	accounts[1].Priority = 10 // 1M 显式更高优先级
+	svc := newContextLengthTestService(accounts)
+
+	ctx := WithOpenAIEstimatedPromptTokens(context.Background(), 1000)
+	for i := 0; i < 10; i++ {
+		selection, _, err := svc.SelectAccountWithScheduler(
+			ctx, &groupID, "", "", "deepseek-v4-flash", nil, OpenAIUpstreamTransportAny, false,
+		)
+		require.NoError(t, err)
+		require.Equal(t, int64(81002), selection.Account.ID, "short prompt must follow explicit higher priority to the 1M account")
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+	}
+}

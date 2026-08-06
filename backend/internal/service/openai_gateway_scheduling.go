@@ -819,8 +819,12 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 		if requireCompact && compactTiers[a.ID] != compactTiers[b.ID] {
 			return compactTiers[a.ID] > compactTiers[b.ID]
 		}
-		// 上下文窗口分层：小窗口优先承接短请求。
+		// 上下文窗口分层：显式优先级（数字小者先）压过窗口偏好，
+		// 同优先级内小窗口优先承接短请求。
 		if estimatedTokens > 0 {
+			if a.Priority != b.Priority {
+				return a.Priority < b.Priority
+			}
 			if av, bv := openAIContextLengthSortValue(a), openAIContextLengthSortValue(b); av != bv {
 				return av < bv
 			}
@@ -1096,10 +1100,15 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 				return rateOrder.compare(available[i].account, available[j].account) < 0
 			})
 		}
-		// 上下文窗口分层：小窗口账号优先承接短请求（层内保持上面的排序）。
+		// 上下文窗口分层：显式账号优先级（数字小者先）压过窗口偏好；同优先级内
+		// 小窗口账号优先承接短请求（层内保持上面的排序）。
 		if openAIEstimatedPromptTokensFromContext(ctx) > 0 {
 			sort.SliceStable(available, func(i, j int) bool {
-				return openAIContextLengthSortValue(available[i].account) < openAIContextLengthSortValue(available[j].account)
+				a, b := available[i], available[j]
+				if a.account.Priority != b.account.Priority {
+					return a.account.Priority < b.account.Priority
+				}
+				return openAIContextLengthSortValue(a.account) < openAIContextLengthSortValue(b.account)
 			})
 		}
 
