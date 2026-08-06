@@ -131,6 +131,29 @@ func accountContextLengthFits(account *Account, estimatedTokens int) bool {
 	return limit <= 0 || estimatedTokens <= limit
 }
 
+// capOpenAIEstimatedPromptTokensForPool 把估算值截断到候选池的最大声明窗口。
+// 估算是启发式且系统性偏高的：当它高于池内所有窗口时不应整池拒绝（fail-open），
+// 而是按最大窗口处理——小窗口照常被过滤，最大窗口账号存活，由上游做最终裁决。
+// 池内存在未声明窗口（0=不限）的账号时无需截断（该账号本就不会被过滤）。
+func capOpenAIEstimatedPromptTokensForPool(est int, contextLengths []int) int {
+	if est <= 0 || len(contextLengths) == 0 {
+		return est
+	}
+	maxLimit := 0
+	for _, limit := range contextLengths {
+		if limit <= 0 {
+			return est // 存在不限窗口的账号，无需截断
+		}
+		if limit > maxLimit {
+			maxLimit = limit
+		}
+	}
+	if maxLimit > 0 && est > maxLimit {
+		return maxLimit
+	}
+	return est
+}
+
 // openAIContextLengthSortValue 返回账号用于窗口升序排序的键：
 // 未声明（0）视为最大窗口排最后。
 func openAIContextLengthSortValue(account *Account) int {

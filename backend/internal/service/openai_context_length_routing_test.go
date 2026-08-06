@@ -153,17 +153,32 @@ func TestOpenAIScheduler_NoEstimateKeepsLegacyBehavior(t *testing.T) {
 	}
 }
 
-// 请求超过所有声明窗口：无可用账号错误，而不是硬发给装不下的上游。
-func TestOpenAIScheduler_ContextLengthExhaustsAllAccounts(t *testing.T) {
+// 估算超过所有声明窗口（估算系统性偏高的场景）：fail-open 到最大窗口账号，
+// 由上游做最终裁决，而不是整池拒绝。小窗口账号仍被过滤。
+func TestOpenAIScheduler_ContextLengthOverestimateFailsOpenToLargestWindow(t *testing.T) {
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 	groupID := int64(92004)
 	svc := newContextLengthTestService(contextLengthTestAccounts())
 
 	ctx := WithOpenAIEstimatedPromptTokens(context.Background(), 2000000)
-	_, _, err := svc.SelectAccountWithScheduler(
-		ctx, &groupID, "", "", "deepseek-v4-flash", nil, OpenAIUpstreamTransportAny, false,
-	)
-	require.Error(t, err)
+	for i := 0; i < 5; i++ {
+		selection, _, err := svc.SelectAccountWithScheduler(
+			ctx, &groupID, "", "", "deepseek-v4-flash", nil, OpenAIUpstreamTransportAny, false,
+		)
+		require.NoError(t, err)
+		require.Equal(t, int64(81002), selection.Account.ID, "over-estimate must fail open to the largest window, never the smaller one")
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+	}
+}
+
+func TestCapOpenAIEstimatedPromptTokensForPool(t *testing.T) {
+	require.Equal(t, 0, capOpenAIEstimatedPromptTokensForPool(0, []int{200000}), "no estimate stays zero")
+	require.Equal(t, 150000, capOpenAIEstimatedPromptTokensForPool(150000, []int{200000, 1048576}), "within max → unchanged")
+	require.Equal(t, 1048576, capOpenAIEstimatedPromptTokensForPool(2000000, []int{200000, 1048576}), "above max → capped to max")
+	require.Equal(t, 2000000, capOpenAIEstimatedPromptTokensForPool(2000000, []int{200000, 0}), "unlimited account present → no cap")
+	require.Equal(t, 2000000, capOpenAIEstimatedPromptTokensForPool(2000000, nil), "empty pool → unchanged")
 }
 
 // 256k 负载打满（LoadRate=100）时，短请求应自动溢出到 1M 账号（分层不破坏并发调度）。

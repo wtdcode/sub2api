@@ -758,6 +758,16 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 // (only meaningful when requireCompact=true).
 func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *int64, platform string, accounts []Account, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, requiredCapability OpenAIEndpointCapability, preferLowUpstreamRate bool) (*Account, bool) {
 	platform = normalizeOpenAICompatiblePlatform(platform)
+	// fail-open：估算高于池内最大声明窗口时按最大窗口处理，避免整池误拒。
+	if est := openAIEstimatedPromptTokensFromContext(ctx); est > 0 {
+		limits := make([]int, 0, len(accounts))
+		for i := range accounts {
+			limits = append(limits, accounts[i].GetContextLength())
+		}
+		if capped := capOpenAIEstimatedPromptTokensForPool(est, limits); capped != est {
+			ctx = WithOpenAIEstimatedPromptTokens(ctx, capped)
+		}
+	}
 	compactBlocked := false
 	needsUpstreamCheck := s.needsUpstreamChannelRestrictionCheck(ctx, groupID)
 	eligible := make([]*Account, 0, len(accounts))
@@ -917,6 +927,16 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	}
 	if len(accounts) == 0 {
 		return nil, ErrNoAvailableAccounts
+	}
+	// fail-open：估算高于池内最大声明窗口时按最大窗口处理，避免整池误拒。
+	if est := openAIEstimatedPromptTokensFromContext(ctx); est > 0 {
+		limits := make([]int, 0, len(accounts))
+		for i := range accounts {
+			limits = append(limits, accounts[i].GetContextLength())
+		}
+		if capped := capOpenAIEstimatedPromptTokensForPool(est, limits); capped != est {
+			ctx = WithOpenAIEstimatedPromptTokens(ctx, capped)
+		}
 	}
 
 	isExcluded := func(accountID int64) bool {

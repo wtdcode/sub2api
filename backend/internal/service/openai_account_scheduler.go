@@ -1344,6 +1344,14 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
+	// fail-open：估算高于池内最大声明窗口时按最大窗口处理，避免整池误拒。
+	if req.EstimatedPromptTokens > 0 {
+		limits := make([]int, 0, len(accounts))
+		for _, account := range accounts {
+			limits = append(limits, account.GetContextLength())
+		}
+		req.EstimatedPromptTokens = capOpenAIEstimatedPromptTokensForPool(req.EstimatedPromptTokens, limits)
+	}
 	if len(accounts) == 0 {
 		return nil, 0, 0, 0, noAvailableOpenAISelectionError(req.RequestedModel, false, openAISelectionFilterStats{}.summary(""))
 	}
