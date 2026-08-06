@@ -42,6 +42,47 @@ func EstimateOpenAIChatPromptTokens(body []byte) int {
 		return true
 	})
 
+	// Responses API 形状：instructions + input（字符串或 item 列表）。
+	if instr := gjson.GetBytes(body, "instructions"); instr.Type == gjson.String {
+		total += estimateTokensForText(instr.String())
+	}
+	input := gjson.GetBytes(body, "input")
+	switch {
+	case input.Type == gjson.String:
+		total += estimateTokensForText(input.String())
+	case input.IsArray():
+		input.ForEach(func(_, item gjson.Result) bool {
+			total += openAIChatMessageTokenOverhead
+			content := item.Get("content")
+			switch {
+			case content.Type == gjson.String:
+				total += estimateTokensForText(content.String())
+			case content.IsArray():
+				content.ForEach(func(_, part gjson.Result) bool {
+					if t := strings.TrimSpace(part.Get("text").String()); t != "" {
+						total += estimateTokensForText(t)
+					}
+					return true
+				})
+			}
+			return true
+		})
+	}
+
+	// Anthropic 形状：顶层 system（字符串或 block 列表）；messages 复用上面的通用遍历。
+	system := gjson.GetBytes(body, "system")
+	switch {
+	case system.Type == gjson.String:
+		total += estimateTokensForText(system.String())
+	case system.IsArray():
+		system.ForEach(func(_, part gjson.Result) bool {
+			if t := strings.TrimSpace(part.Get("text").String()); t != "" {
+				total += estimateTokensForText(t)
+			}
+			return true
+		})
+	}
+
 	// tools/functions 定义随每次请求进入上下文，长 schema 不可忽略。
 	if tools := gjson.GetBytes(body, "tools"); tools.Exists() {
 		total += estimateTokensForText(tools.Raw)
@@ -88,6 +129,16 @@ func accountContextLengthFits(account *Account, estimatedTokens int) bool {
 	}
 	limit := account.GetContextLength()
 	return limit <= 0 || estimatedTokens <= limit
+}
+
+// openAIContextLengthSortValue 返回账号用于窗口升序排序的键：
+// 未声明（0）视为最大窗口排最后。
+func openAIContextLengthSortValue(account *Account) int {
+	limit := account.GetContextLength()
+	if limit <= 0 {
+		return int(^uint(0) >> 1)
+	}
+	return limit
 }
 
 // partitionOpenAICandidatesByContextLength 将候选按声明的上下文窗口升序分层：

@@ -59,13 +59,18 @@ func TestAccountContextLengthFits(t *testing.T) {
 }
 
 func newContextLengthTestService(accounts []Account) *OpenAIGatewayService {
+	return newContextLengthTestServiceWithCache(accounts, schedulerTestConcurrencyCache{})
+}
+
+// LoadBatchEnabled=true 对齐生产默认（走 legacy 分层负载路径）。
+func newContextLengthTestServiceWithCache(accounts []Account, cache schedulerTestConcurrencyCache) *OpenAIGatewayService {
 	cfg := &config.Config{}
-	cfg.Gateway.Scheduling.LoadBatchEnabled = false
+	cfg.Gateway.Scheduling.LoadBatchEnabled = true
 	return &OpenAIGatewayService{
 		accountRepo:        schedulerTestOpenAIAccountRepo{accounts: accounts},
 		cache:              &schedulerTestGatewayCache{},
 		cfg:                cfg,
-		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{}),
+		concurrencyService: NewConcurrencyService(cache),
 	}
 }
 
@@ -159,4 +164,29 @@ func TestOpenAIScheduler_ContextLengthExhaustsAllAccounts(t *testing.T) {
 		ctx, &groupID, "", "", "deepseek-v4-flash", nil, OpenAIUpstreamTransportAny, false,
 	)
 	require.Error(t, err)
+}
+
+// 256k 负载打满（LoadRate=100）时，短请求应自动溢出到 1M 账号（分层不破坏并发调度）。
+func TestOpenAIScheduler_ContextLengthSpillsWhenPreferredSaturated(t *testing.T) {
+	resetOpenAIAdvancedSchedulerSettingCacheForTest()
+	groupID := int64(92005)
+	svc := newContextLengthTestServiceWithCache(contextLengthTestAccounts(), schedulerTestConcurrencyCache{
+		loadMap: map[int64]*AccountLoadInfo{
+			81001: {AccountID: 81001, LoadRate: 100, CurrentConcurrency: 10}, // 256k 打满
+		},
+		acquireResults: map[int64]bool{81001: false}, // 双保险：即便进入抢槽也失败
+	})
+
+	ctx := WithOpenAIEstimatedPromptTokens(context.Background(), 1000)
+	for i := 0; i < 5; i++ {
+		selection, _, err := svc.SelectAccountWithScheduler(
+			ctx, &groupID, "", "", "deepseek-v4-flash", nil, OpenAIUpstreamTransportAny, false,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, selection.Account)
+		require.Equal(t, int64(81002), selection.Account.ID, "saturated 256k must spill to the 1M account")
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+	}
 }

@@ -447,6 +447,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// 生图意图只影响能力路由与图片计费，不关门：混合 /v1/responses 请求的
 	// token 计费部分仍受利润门保护，独立图片/视频端点才在门外。
 	pricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
+	// 上下文窗口路由：估算 prompt 长度供调度器过滤窗口不足的账号。
+	pricingCtx = service.WithOpenAIEstimatedPromptTokens(pricingCtx, service.EstimateOpenAIChatPromptTokens(body))
 	c.Request = c.Request.WithContext(pricingCtx)
 
 	for {
@@ -1018,6 +1020,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	// 分组利润控制：Messages 文本入口同样请求级装门并固定 pricingAt。
 	msgPricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
+	// 上下文窗口路由：Anthropic 形状 body 同样先估算长度。
+	msgPricingCtx = service.WithOpenAIEstimatedPromptTokens(msgPricingCtx, service.EstimateOpenAIChatPromptTokens(body))
 	c.Request = c.Request.WithContext(msgPricingCtx)
 
 	for {
