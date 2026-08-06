@@ -867,6 +867,8 @@ export default {
       concurrency: '并发数',
       loadFactor: '负载因子',
       loadFactorHint: '提高负载因子可以提高对账号的调度频率',
+      contextLength: '上下文窗口 (tokens)',
+      contextLengthHint: '可选。声明该上游支持的最大上下文长度，调度时超长请求将不会路由到此账号',
       priority: '优先级',
       priorityHint: '优先级越小的账号优先使用',
       billingRateMultiplier: '账号计费倍率',

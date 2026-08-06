@@ -808,6 +808,9 @@ export default {
       concurrency: 'Concurrency',
       loadFactor: 'Load Factor',
       loadFactorHint: 'Higher load factor increases scheduling frequency',
+      contextLength: 'Context Window (tokens)',
+      contextLengthHint:
+        'Optional. Declares the maximum context length this upstream supports; oversized requests will not be routed to this account',
       priority: 'Priority',
       priorityHint: 'Lower value accounts are used first',
       billingRateMultiplier: 'Billing Rate Multiplier',

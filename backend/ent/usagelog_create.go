@@ -253,6 +253,20 @@ func (_c *UsageLogCreate) SetNillableCacheCreation1hTokens(v *int) *UsageLogCrea
 	return _c
 }
 
+// SetEstimatedContextTokens sets the "estimated_context_tokens" field.
+func (_c *UsageLogCreate) SetEstimatedContextTokens(v int) *UsageLogCreate {
+	_c.mutation.SetEstimatedContextTokens(v)
+	return _c
+}
+
+// SetNillableEstimatedContextTokens sets the "estimated_context_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableEstimatedContextTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetEstimatedContextTokens(*v)
+	}
+	return _c
+}
+
 // SetInputCost sets the "input_cost" field.
 func (_c *UsageLogCreate) SetInputCost(v float64) *UsageLogCreate {
 	_c.mutation.SetInputCost(v)
@@ -990,6 +1004,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldCacheCreation1hTokens, field.TypeInt, value)
 		_node.CacheCreation1hTokens = value
 	}
+	if value, ok := _c.mutation.EstimatedContextTokens(); ok {
+		_spec.SetField(usagelog.FieldEstimatedContextTokens, field.TypeInt, value)
+		_node.EstimatedContextTokens = &value
+	}
 	if value, ok := _c.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
 		_node.InputCost = value
@@ -1546,6 +1564,30 @@ func (u *UsageLogUpsert) UpdateCacheCreation1hTokens() *UsageLogUpsert {
 // AddCacheCreation1hTokens adds v to the "cache_creation_1h_tokens" field.
 func (u *UsageLogUpsert) AddCacheCreation1hTokens(v int) *UsageLogUpsert {
 	u.Add(usagelog.FieldCacheCreation1hTokens, v)
+	return u
+}
+
+// SetEstimatedContextTokens sets the "estimated_context_tokens" field.
+func (u *UsageLogUpsert) SetEstimatedContextTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldEstimatedContextTokens, v)
+	return u
+}
+
+// UpdateEstimatedContextTokens sets the "estimated_context_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateEstimatedContextTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldEstimatedContextTokens)
+	return u
+}
+
+// AddEstimatedContextTokens adds v to the "estimated_context_tokens" field.
+func (u *UsageLogUpsert) AddEstimatedContextTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldEstimatedContextTokens, v)
+	return u
+}
+
+// ClearEstimatedContextTokens clears the value of the "estimated_context_tokens" field.
+func (u *UsageLogUpsert) ClearEstimatedContextTokens() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldEstimatedContextTokens)
 	return u
 }
 
@@ -2418,6 +2460,34 @@ func (u *UsageLogUpsertOne) AddCacheCreation1hTokens(v int) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateCacheCreation1hTokens() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheCreation1hTokens()
+	})
+}
+
+// SetEstimatedContextTokens sets the "estimated_context_tokens" field.
+func (u *UsageLogUpsertOne) SetEstimatedContextTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetEstimatedContextTokens(v)
+	})
+}
+
+// AddEstimatedContextTokens adds v to the "estimated_context_tokens" field.
+func (u *UsageLogUpsertOne) AddEstimatedContextTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddEstimatedContextTokens(v)
+	})
+}
+
+// UpdateEstimatedContextTokens sets the "estimated_context_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateEstimatedContextTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateEstimatedContextTokens()
+	})
+}
+
+// ClearEstimatedContextTokens clears the value of the "estimated_context_tokens" field.
+func (u *UsageLogUpsertOne) ClearEstimatedContextTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearEstimatedContextTokens()
 	})
 }
 
@@ -3532,6 +3602,34 @@ func (u *UsageLogUpsertBulk) AddCacheCreation1hTokens(v int) *UsageLogUpsertBulk
 func (u *UsageLogUpsertBulk) UpdateCacheCreation1hTokens() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheCreation1hTokens()
+	})
+}
+
+// SetEstimatedContextTokens sets the "estimated_context_tokens" field.
+func (u *UsageLogUpsertBulk) SetEstimatedContextTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetEstimatedContextTokens(v)
+	})
+}
+
+// AddEstimatedContextTokens adds v to the "estimated_context_tokens" field.
+func (u *UsageLogUpsertBulk) AddEstimatedContextTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddEstimatedContextTokens(v)
+	})
+}
+
+// UpdateEstimatedContextTokens sets the "estimated_context_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateEstimatedContextTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateEstimatedContextTokens()
+	})
+}
+
+// ClearEstimatedContextTokens clears the value of the "estimated_context_tokens" field.
+func (u *UsageLogUpsertBulk) ClearEstimatedContextTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearEstimatedContextTokens()
 	})
 }
 

@@ -1659,6 +1659,9 @@ export interface AdminUsageLog extends UsageLog {
   channel_id?: number | null
   billing_tier?: string | null
 
+  // 估算上下文长度（tokens，仅管理员接口返回，可能缺失）
+  estimated_context_tokens?: number | null
+
   // 最小账号信息（仅管理员接口返回）
   account?: UsageLogAccountSummary
 }

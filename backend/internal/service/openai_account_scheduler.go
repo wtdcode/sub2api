@@ -84,6 +84,9 @@ type OpenAIAccountScheduleRequest struct {
 	RequiredImageCapability OpenAIImagesCapability
 	RequireCompact          bool
 	ExcludedIDs             map[int64]struct{}
+	// EstimatedPromptTokens 请求 prompt 长度估算（0=未知）。用于过滤上下文窗口
+	// 装不下请求的账号，并让小窗口账号优先承接短请求。
+	EstimatedPromptTokens int
 }
 
 type OpenAIAccountScheduleDecision struct {
@@ -1038,6 +1041,20 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 		return append(primary, overflow...)
 	}
 
+	// 上下文窗口分层：小窗口账号优先承接短请求，把大窗口容量留给长请求。
+	// 层内仍走原有 TopK/score/priority 选择（与 RequireCompact 两级结构同型）。
+	buildTieredSelectionOrder := func(pool []openAIAccountCandidateScore) []openAIAccountCandidateScore {
+		tiers := partitionOpenAICandidatesByContextLength(req.EstimatedPromptTokens, pool)
+		if len(tiers) == 1 {
+			return buildSelectionOrder(tiers[0])
+		}
+		ordered := make([]openAIAccountCandidateScore, 0, len(pool))
+		for _, tier := range tiers {
+			ordered = append(ordered, buildSelectionOrder(tier)...)
+		}
+		return ordered
+	}
+
 	if req.RequireCompact {
 		supported := make([]openAIAccountCandidateScore, 0, len(plan.candidates))
 		unknown := make([]openAIAccountCandidateScore, 0, len(plan.candidates))
@@ -1050,15 +1067,15 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 			}
 		}
 		selectionOrder := make([]openAIAccountCandidateScore, 0, len(plan.allCandidates))
-		selectionOrder = append(selectionOrder, buildSelectionOrder(supported)...)
-		selectionOrder = append(selectionOrder, buildSelectionOrder(unknown)...)
+		selectionOrder = append(selectionOrder, buildTieredSelectionOrder(supported)...)
+		selectionOrder = append(selectionOrder, buildTieredSelectionOrder(unknown)...)
 		if len(plan.staleSnapshotCompactRetry) > 0 && s.service.schedulerSnapshot != nil {
 			selectionOrder = append(selectionOrder, sortOpenAICompactRetryCandidates(plan.staleSnapshotCompactRetry)...)
 		}
 		return selectionOrder
 	}
 
-	return buildSelectionOrder(plan.candidates)
+	return buildTieredSelectionOrder(plan.candidates)
 }
 
 func sortOpenAICompactRetryCandidates(pool []openAIAccountCandidateScore) []openAIAccountCandidateScore {
@@ -1704,6 +1721,9 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
 		return false, "model_not_supported"
 	}
+	if !accountContextLengthFits(account, req.EstimatedPromptTokens) {
+		return false, "context_length_insufficient"
+	}
 	if req.GroupID != nil && s != nil && s.service != nil &&
 		s.service.needsUpstreamChannelRestrictionCheck(ctx, req.GroupID) &&
 		s.service.isUpstreamModelRestrictedByChannel(ctx, *req.GroupID, account, req.RequestedModel, req.RequireCompact) {
@@ -2203,6 +2223,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		RequiredImageCapability: requiredImageCapability,
 		RequireCompact:          requireCompact,
 		ExcludedIDs:             excludedIDs,
+		EstimatedPromptTokens:   openAIEstimatedPromptTokensFromContext(ctx),
 	})
 }
 

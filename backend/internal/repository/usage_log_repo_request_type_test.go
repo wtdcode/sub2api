@@ -96,6 +96,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // billing_tier
 			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // account_stats_cost
+			sqlmock.AnyArg(), // estimated_context_tokens
 			sqlmock.AnyArg(), // session_id
 			createdAt,
 		).
@@ -186,6 +187,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // billing_tier
 			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // account_stats_cost
+			sqlmock.AnyArg(), // estimated_context_tokens
 			sqlmock.AnyArg(), // session_id
 			createdAt,
 		).
@@ -845,6 +847,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullFloat64{},
+			sql.NullInt64{},
 			sql.NullString{},
 			now,
 		}})
@@ -920,6 +923,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullInt64{},   // estimated_context_tokens
 			sql.NullString{},  // session_id
 			now,
 		}})
@@ -978,6 +982,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullInt64{},   // estimated_context_tokens
 			sql.NullString{},  // session_id
 			now,
 		}})
@@ -1036,6 +1041,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullInt64{},   // estimated_context_tokens
 			sql.NullString{},  // session_id
 			now,
 		}})

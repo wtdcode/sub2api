@@ -77,6 +77,11 @@ func (UsageLog) Fields() []ent.Field {
 			Default(0),
 		field.Int("cache_creation_1h_tokens").
 			Default(0),
+		// EstimatedContextTokens 调度器的 prompt 长度估算快照（NULL 表示未估算），
+		// 用于与实际 input_tokens 对比校准估算精度。
+		field.Int("estimated_context_tokens").
+			Optional().
+			Nillable(),
 
 		// 成本字段
 		field.Float("input_cost").

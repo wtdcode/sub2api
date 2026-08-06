@@ -150,6 +150,11 @@ func CacheCreation1hTokens(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheCreation1hTokens, v))
 }
 
+// EstimatedContextTokens applies equality check predicate on the "estimated_context_tokens" field. It's identical to EstimatedContextTokensEQ.
+func EstimatedContextTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldEstimatedContextTokens, v))
+}
+
 // InputCost applies equality check predicate on the "input_cost" field. It's identical to InputCostEQ.
 func InputCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldInputCost, v))
@@ -1188,6 +1193,56 @@ func CacheCreation1hTokensLT(v int) predicate.UsageLog {
 // CacheCreation1hTokensLTE applies the LTE predicate on the "cache_creation_1h_tokens" field.
 func CacheCreation1hTokensLTE(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldCacheCreation1hTokens, v))
+}
+
+// EstimatedContextTokensEQ applies the EQ predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldEstimatedContextTokens, v))
+}
+
+// EstimatedContextTokensNEQ applies the NEQ predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldEstimatedContextTokens, v))
+}
+
+// EstimatedContextTokensIn applies the In predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldEstimatedContextTokens, vs...))
+}
+
+// EstimatedContextTokensNotIn applies the NotIn predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldEstimatedContextTokens, vs...))
+}
+
+// EstimatedContextTokensGT applies the GT predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldEstimatedContextTokens, v))
+}
+
+// EstimatedContextTokensGTE applies the GTE predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldEstimatedContextTokens, v))
+}
+
+// EstimatedContextTokensLT applies the LT predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldEstimatedContextTokens, v))
+}
+
+// EstimatedContextTokensLTE applies the LTE predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldEstimatedContextTokens, v))
+}
+
+// EstimatedContextTokensIsNil applies the IsNil predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldEstimatedContextTokens))
+}
+
+// EstimatedContextTokensNotNil applies the NotNil predicate on the "estimated_context_tokens" field.
+func EstimatedContextTokensNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldEstimatedContextTokens))
 }
 
 // InputCostEQ applies the EQ predicate on the "input_cost" field.

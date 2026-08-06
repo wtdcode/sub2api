@@ -150,6 +150,8 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	// 分组利润控制：chat completions 文本入口请求级装门并固定 pricingAt。
 	ccPricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
+	// 上下文窗口路由：估算 prompt 长度供调度器过滤窗口不足的账号。
+	ccPricingCtx = service.WithOpenAIEstimatedPromptTokens(ccPricingCtx, service.EstimateOpenAIChatPromptTokens(body))
 	c.Request = c.Request.WithContext(ccPricingCtx)
 
 	for {

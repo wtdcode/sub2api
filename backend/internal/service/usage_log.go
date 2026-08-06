@@ -144,6 +144,10 @@ type UsageLog struct {
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
+	// EstimatedContextTokens 调度器的 prompt 长度估算快照（nil 表示未估算），
+	// 供管理员与实际 input_tokens 对比。
+	EstimatedContextTokens *int
+
 	ImageInputTokens  int
 	ImageInputCost    float64
 	ImageOutputTokens int

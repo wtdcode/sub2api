@@ -328,6 +328,41 @@ export function buildPlanTypeOptions(current: string, clearLabel: string): PlanT
   return opts
 }
 
+// ===== OpenAI 上下文窗口声明（openai 平台的 apikey/upstream 账号） =====
+
+export const CONTEXT_LENGTH_CREDENTIAL_KEY = 'context_length'
+
+/** 上下文窗口声明资格（与后端读取 credentials.context_length 的范围一致） */
+export function isContextLengthCapable(platform: string, type: string): boolean {
+  return platform === 'openai' && (type === 'apikey' || type === 'upstream')
+}
+
+/**
+ * 从凭据读取 context_length，仅接受正整数；0/缺失/脏数据视为未限制，返回 null
+ * （与后端 0/absent = unlimited 语义对齐）。
+ */
+export function readContextLength(
+  credentials: Record<string, unknown> | undefined | null
+): number | null {
+  const v = credentials?.[CONTEXT_LENGTH_CREDENTIAL_KEY]
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null
+}
+
+/**
+ * 把上下文窗口声明写入凭据：正整数则设置，其余（空/0/负数/非整数/NaN）删除该键
+ * （= 不限制）。create 时凭据尚无该键，删除为空操作，故无需区分模式。
+ */
+export function applyContextLength(
+  credentials: Record<string, unknown>,
+  value: number | null | undefined
+): void {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    credentials[CONTEXT_LENGTH_CREDENTIAL_KEY] = value
+  } else {
+    delete credentials[CONTEXT_LENGTH_CREDENTIAL_KEY]
+  }
+}
+
 /**
  * 把手动选择的 plan_type 写入凭据：非空则设置，空则删除该键（清空/自动识别）。
  * 直接修改传入对象并返回。

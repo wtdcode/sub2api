@@ -395,6 +395,33 @@ func (_u *UsageLogUpdate) AddCacheCreation1hTokens(v int) *UsageLogUpdate {
 	return _u
 }
 
+// SetEstimatedContextTokens sets the "estimated_context_tokens" field.
+func (_u *UsageLogUpdate) SetEstimatedContextTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetEstimatedContextTokens()
+	_u.mutation.SetEstimatedContextTokens(v)
+	return _u
+}
+
+// SetNillableEstimatedContextTokens sets the "estimated_context_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableEstimatedContextTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetEstimatedContextTokens(*v)
+	}
+	return _u
+}
+
+// AddEstimatedContextTokens adds value to the "estimated_context_tokens" field.
+func (_u *UsageLogUpdate) AddEstimatedContextTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddEstimatedContextTokens(v)
+	return _u
+}
+
+// ClearEstimatedContextTokens clears the value of the "estimated_context_tokens" field.
+func (_u *UsageLogUpdate) ClearEstimatedContextTokens() *UsageLogUpdate {
+	_u.mutation.ClearEstimatedContextTokens()
+	return _u
+}
+
 // SetInputCost sets the "input_cost" field.
 func (_u *UsageLogUpdate) SetInputCost(v float64) *UsageLogUpdate {
 	_u.mutation.ResetInputCost()
@@ -1171,6 +1198,15 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedCacheCreation1hTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheCreation1hTokens, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.EstimatedContextTokens(); ok {
+		_spec.SetField(usagelog.FieldEstimatedContextTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedEstimatedContextTokens(); ok {
+		_spec.AddField(usagelog.FieldEstimatedContextTokens, field.TypeInt, value)
+	}
+	if _u.mutation.EstimatedContextTokensCleared() {
+		_spec.ClearField(usagelog.FieldEstimatedContextTokens, field.TypeInt)
+	}
 	if value, ok := _u.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
 	}
@@ -1849,6 +1885,33 @@ func (_u *UsageLogUpdateOne) SetNillableCacheCreation1hTokens(v *int) *UsageLogU
 // AddCacheCreation1hTokens adds value to the "cache_creation_1h_tokens" field.
 func (_u *UsageLogUpdateOne) AddCacheCreation1hTokens(v int) *UsageLogUpdateOne {
 	_u.mutation.AddCacheCreation1hTokens(v)
+	return _u
+}
+
+// SetEstimatedContextTokens sets the "estimated_context_tokens" field.
+func (_u *UsageLogUpdateOne) SetEstimatedContextTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetEstimatedContextTokens()
+	_u.mutation.SetEstimatedContextTokens(v)
+	return _u
+}
+
+// SetNillableEstimatedContextTokens sets the "estimated_context_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableEstimatedContextTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetEstimatedContextTokens(*v)
+	}
+	return _u
+}
+
+// AddEstimatedContextTokens adds value to the "estimated_context_tokens" field.
+func (_u *UsageLogUpdateOne) AddEstimatedContextTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddEstimatedContextTokens(v)
+	return _u
+}
+
+// ClearEstimatedContextTokens clears the value of the "estimated_context_tokens" field.
+func (_u *UsageLogUpdateOne) ClearEstimatedContextTokens() *UsageLogUpdateOne {
+	_u.mutation.ClearEstimatedContextTokens()
 	return _u
 }
 
@@ -2657,6 +2720,15 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedCacheCreation1hTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheCreation1hTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.EstimatedContextTokens(); ok {
+		_spec.SetField(usagelog.FieldEstimatedContextTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedEstimatedContextTokens(); ok {
+		_spec.AddField(usagelog.FieldEstimatedContextTokens, field.TypeInt, value)
+	}
+	if _u.mutation.EstimatedContextTokensCleared() {
+		_spec.ClearField(usagelog.FieldEstimatedContextTokens, field.TypeInt)
 	}
 	if value, ok := _u.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)

@@ -568,6 +568,9 @@ type AdminUsageLog struct {
 	// AccountStatsCost 自定义定价规则计算的账号统计费用（nil 表示使用默认公式）
 	AccountStatsCost *float64 `json:"account_stats_cost,omitempty"`
 
+	// EstimatedContextTokens 调度器的 prompt 长度估算快照（与实际 input_tokens 对比用）
+	EstimatedContextTokens *int `json:"estimated_context_tokens,omitempty"`
+
 	// IPAddress 用户请求 IP
 	IPAddress *string `json:"ip_address,omitempty"`
 

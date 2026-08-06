@@ -52,6 +52,8 @@ const (
 	FieldCacheCreation5mTokens = "cache_creation_5m_tokens"
 	// FieldCacheCreation1hTokens holds the string denoting the cache_creation_1h_tokens field in the database.
 	FieldCacheCreation1hTokens = "cache_creation_1h_tokens"
+	// FieldEstimatedContextTokens holds the string denoting the estimated_context_tokens field in the database.
+	FieldEstimatedContextTokens = "estimated_context_tokens"
 	// FieldInputCost holds the string denoting the input_cost field in the database.
 	FieldInputCost = "input_cost"
 	// FieldOutputCost holds the string denoting the output_cost field in the database.
@@ -175,6 +177,7 @@ var Columns = []string{
 	FieldCacheReadTokens,
 	FieldCacheCreation5mTokens,
 	FieldCacheCreation1hTokens,
+	FieldEstimatedContextTokens,
 	FieldInputCost,
 	FieldOutputCost,
 	FieldCacheCreationCost,
@@ -385,6 +388,11 @@ func ByCacheCreation5mTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByCacheCreation1hTokens orders the results by the cache_creation_1h_tokens field.
 func ByCacheCreation1hTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCacheCreation1hTokens, opts...).ToFunc()
+}
+
+// ByEstimatedContextTokens orders the results by the estimated_context_tokens field.
+func ByEstimatedContextTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEstimatedContextTokens, opts...).ToFunc()
 }
 
 // ByInputCost orders the results by the input_cost field.

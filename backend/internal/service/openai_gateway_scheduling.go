@@ -290,6 +290,9 @@ func isOpenAICompatibleAccountEligibleForRequest(ctx context.Context, account *A
 	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
 		return false
 	}
+	if !accountContextLengthFits(account, openAIEstimatedPromptTokensFromContext(ctx)) {
+		return false
+	}
 	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
 		if account.IsGrok() && requiredCapability == OpenAIEndpointCapabilityGrokMediaGeneration {
 			_, reason := account.GrokMediaGenerationEligibility()

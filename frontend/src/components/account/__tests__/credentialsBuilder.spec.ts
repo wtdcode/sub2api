@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import {
   ANTIGRAVITY_PROJECT_ID_CREDENTIAL_KEY,
+  CONTEXT_LENGTH_CREDENTIAL_KEY,
   HEADER_OVERRIDE_ENABLED_CREDENTIAL_KEY,
   HEADER_OVERRIDES_CREDENTIAL_KEY,
   applyAntigravityProjectID,
+  applyContextLength,
   applyHeaderOverride,
   applyInterceptWarmup,
   applyPlanType,
+  isContextLengthCapable,
+  readContextLength,
   buildHeaderOverridesObject,
   buildPlanTypeOptions,
   isCustomGrokBaseUrl,
@@ -382,6 +386,70 @@ describe('validateHeaderOverrideRows session isolation headers', () => {
 
   it('rejects oversized names', () => {
     expect(validateHeaderOverrideRows([{ name: 'x'.repeat(201), value: 'v' }])).toBe('invalidName')
+  })
+})
+
+describe('context_length helpers', () => {
+  describe('isContextLengthCapable', () => {
+    it('only openai apikey/upstream accounts are eligible', () => {
+      expect(isContextLengthCapable('openai', 'apikey')).toBe(true)
+      expect(isContextLengthCapable('openai', 'upstream')).toBe(true)
+      expect(isContextLengthCapable('openai', 'oauth')).toBe(false)
+      expect(isContextLengthCapable('anthropic', 'apikey')).toBe(false)
+      expect(isContextLengthCapable('antigravity', 'upstream')).toBe(false)
+    })
+  })
+
+  describe('applyContextLength', () => {
+    it('positive integer: sets context_length as a number', () => {
+      const creds: Record<string, unknown> = { api_key: 'sk', base_url: 'url' }
+      applyContextLength(creds, 200000)
+      expect(creds[CONTEXT_LENGTH_CREDENTIAL_KEY]).toBe(200000)
+      expect(creds.api_key).toBe('sk')
+      expect(creds.base_url).toBe('url')
+    })
+
+    it('empty value: does not add the key on create-style fresh credentials', () => {
+      const creds: Record<string, unknown> = { api_key: 'sk' }
+      applyContextLength(creds, null)
+      expect(CONTEXT_LENGTH_CREDENTIAL_KEY in creds).toBe(false)
+    })
+
+    it('cleared/0/invalid value: deletes an existing key (edit-style)', () => {
+      for (const cleared of [null, undefined, 0, -1, 1.5, NaN]) {
+        const creds: Record<string, unknown> = {
+          api_key: 'sk',
+          [CONTEXT_LENGTH_CREDENTIAL_KEY]: 128000
+        }
+        applyContextLength(creds, cleared as number | null | undefined)
+        expect(CONTEXT_LENGTH_CREDENTIAL_KEY in creds).toBe(false)
+        expect(creds.api_key).toBe('sk')
+      }
+    })
+  })
+
+  describe('readContextLength', () => {
+    it('reads a positive integer back for hydration', () => {
+      expect(readContextLength({ [CONTEXT_LENGTH_CREDENTIAL_KEY]: 128000 })).toBe(128000)
+    })
+
+    it('treats 0/absent/dirty values as unlimited (null)', () => {
+      expect(readContextLength({ [CONTEXT_LENGTH_CREDENTIAL_KEY]: 0 })).toBeNull()
+      expect(readContextLength({ [CONTEXT_LENGTH_CREDENTIAL_KEY]: -5 })).toBeNull()
+      expect(readContextLength({ [CONTEXT_LENGTH_CREDENTIAL_KEY]: 1.5 })).toBeNull()
+      expect(readContextLength({ [CONTEXT_LENGTH_CREDENTIAL_KEY]: '128000' })).toBeNull()
+      expect(readContextLength({})).toBeNull()
+      expect(readContextLength(undefined)).toBeNull()
+      expect(readContextLength(null)).toBeNull()
+    })
+
+    it('round-trips with applyContextLength', () => {
+      const creds: Record<string, unknown> = {}
+      applyContextLength(creds, 400000)
+      expect(readContextLength(creds)).toBe(400000)
+      applyContextLength(creds, null)
+      expect(readContextLength(creds)).toBeNull()
+    })
   })
 })
 

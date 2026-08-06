@@ -78,6 +78,15 @@
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
 
+        <!-- 上下文窗口声明（仅 openai apikey，后端读取 credentials.context_length） -->
+        <div v-if="isContextLengthCapable(account.platform, account.type)">
+          <label class="input-label">{{ t('admin.accounts.contextLength') }}</label>
+          <input v-model.number="editContextLength" type="number" min="1" step="1"
+            class="input" placeholder="200000"
+            @input="editContextLength = (editContextLength && editContextLength >= 1) ? Math.floor(editContextLength) : null" />
+          <p class="input-hint">{{ t('admin.accounts.contextLengthHint') }}</p>
+        </div>
+
         <!-- Model Restriction Section (不适用于 Antigravity) -->
         <div v-if="account.platform !== 'antigravity'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
@@ -687,6 +696,14 @@
             placeholder="sk-..."
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
+        </div>
+        <!-- 上下文窗口声明（仅 openai upstream，后端读取 credentials.context_length） -->
+        <div v-if="isContextLengthCapable(account.platform, account.type)">
+          <label class="input-label">{{ t('admin.accounts.contextLength') }}</label>
+          <input v-model.number="editContextLength" type="number" min="1" step="1"
+            class="input" placeholder="200000"
+            @input="editContextLength = (editContextLength && editContextLength >= 1) ? Math.floor(editContextLength) : null" />
+          <p class="input-hint">{{ t('admin.accounts.contextLengthHint') }}</p>
         </div>
       </div>
 
@@ -2689,9 +2706,12 @@ import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import OllamaCloudUsageSettings from '@/components/account/OllamaCloudUsageSettings.vue'
 import {
   applyAntigravityProjectID,
+  applyContextLength,
   applyHeaderOverride,
   applyInterceptWarmup,
   applyPlanType,
+  isContextLengthCapable,
+  readContextLength,
   buildPlanTypeOptions,
   readPlanType,
   isCustomGrokBaseUrl,
@@ -2777,6 +2797,7 @@ interface TempUnschedRuleForm {
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
 const editApiKey = ref('')
+const editContextLength = ref<number | null>(null) // openai apikey/upstream: 上下文窗口声明
 // Bedrock credentials
 const editBedrockAccessKeyId = ref('')
 const editBedrockSecretAccessKey = ref('')
@@ -3339,6 +3360,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   editVertexProjectId.value = ''
   editVertexClientEmail.value = ''
   editVertexLocation.value = 'us-central1'
+  editContextLength.value = null
   antigravityProjectId.value =
     newAccount.platform === 'antigravity' &&
     newAccount.type === 'oauth' &&
@@ -3555,6 +3577,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
             ? 'https://api.x.ai/v1'
             : 'https://api.anthropic.com'
     editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
+    editContextLength.value = readContextLength(credentials)
 
     // Load model mappings and detect mode
     loadModelRestrictionFromMapping(credentials.model_mapping as Record<string, unknown> | undefined)
@@ -3608,6 +3631,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   } else if (newAccount.type === 'upstream' && newAccount.credentials) {
     const credentials = newAccount.credentials as Record<string, unknown>
     editBaseUrl.value = (credentials.base_url as string) || ''
+    editContextLength.value = readContextLength(credentials)
   } else if ((newAccount.platform === 'gemini' || newAccount.platform === 'anthropic') && newAccount.type === 'service_account' && newAccount.credentials) {
     const credentials = newAccount.credentials as Record<string, unknown>
     editVertexProjectId.value = (credentials.project_id as string) || ''
@@ -4192,6 +4216,7 @@ const handleSubmit = async () => {
         } else {
           delete newCredentials.compact_model_mapping
         }
+        applyContextLength(newCredentials, editContextLength.value)
       }
 
       // Add pool mode if enabled
@@ -4246,6 +4271,10 @@ const handleSubmit = async () => {
 
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
+      }
+
+      if (isContextLengthCapable(props.account.platform, props.account.type)) {
+        applyContextLength(newCredentials, editContextLength.value)
       }
 
       // Add intercept warmup requests setting
