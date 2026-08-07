@@ -39,14 +39,34 @@ func TestEstimateOpenAIChatPromptTokens(t *testing.T) {
 	require.Greater(t, est, 0)
 	require.Less(t, est, 20)
 
-	// ~400k ASCII chars → ~100k tokens (4 chars/token heuristic)
+	// ~400k ASCII chars → ~120k tokens (3.33 chars/token heuristic)
 	long := []byte(`{"model":"m","messages":[{"role":"user","content":"` + strings.Repeat("word ", 80000) + `"}]}`)
 	est = EstimateOpenAIChatPromptTokens(long)
-	require.InDelta(t, 100000, est, 10000)
+	require.InDelta(t, 120000, est, 12000)
 
 	// content parts + tools 也计入
 	parts := []byte(`{"messages":[{"role":"user","content":[{"type":"text","text":"aaaa bbbb cccc dddd"},{"type":"image_url","image_url":{"url":"http://x"}}]}],"tools":[{"type":"function","function":{"name":"f","description":"aaaa bbbb cccc dddd"}}]}`)
 	require.Greater(t, EstimateOpenAIChatPromptTokens(parts), 8)
+}
+
+// Claude Code 形状：tool_result 嵌套 content 是上下文大头，必须被计入
+//（上线首日曾因漏算它导致 /v1/messages 估算中位偏低到 0.59x）。
+func TestEstimateOpenAIChatPromptTokens_AnthropicToolBlocks(t *testing.T) {
+	bigToolOutput := strings.Repeat("line of file content here ", 4000) // ~104k chars → ~31k tokens
+	body := []byte(`{"model":"m","system":[{"type":"text","text":"You are Claude Code."}],"messages":[
+		{"role":"user","content":"read the file"},
+		{"role":"assistant","content":[
+			{"type":"thinking","thinking":"I should read the file first to understand it."},
+			{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/tmp/a.txt"}}]},
+		{"role":"user","content":[
+			{"type":"tool_result","tool_use_id":"t1","content":[{"type":"text","text":"` + bigToolOutput + `"}]}]}
+	]}`)
+	est := EstimateOpenAIChatPromptTokens(body)
+	require.Greater(t, est, 28000, "tool_result nested content must dominate the estimate")
+
+	// 图片 block 不计入（防 base64 反向爆炸）
+	img := []byte(`{"messages":[{"role":"user","content":[{"type":"image","source":{"type":"base64","data":"` + strings.Repeat("A", 50000) + `"}}]}]}`)
+	require.Less(t, EstimateOpenAIChatPromptTokens(img), 100)
 }
 
 func TestAccountContextLengthFits(t *testing.T) {

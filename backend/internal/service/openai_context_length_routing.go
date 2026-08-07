@@ -24,74 +24,116 @@ func EstimateOpenAIChatPromptTokens(body []byte) int {
 
 	gjson.GetBytes(body, "messages").ForEach(func(_, message gjson.Result) bool {
 		total += openAIChatMessageTokenOverhead
-		content := message.Get("content")
-		switch {
-		case content.Type == gjson.String:
-			total += estimateTokensForText(content.String())
-		case content.IsArray():
-			content.ForEach(func(_, part gjson.Result) bool {
-				if t := strings.TrimSpace(part.Get("text").String()); t != "" {
-					total += estimateTokensForText(t)
-				}
-				return true
-			})
-		}
+		total += estimateOpenAIContentTokens(message.Get("content"), 0)
 		if calls := message.Get("tool_calls"); calls.Exists() {
-			total += estimateTokensForText(calls.Raw)
+			total += estimateRoutingTextTokens(calls.Raw)
 		}
 		return true
 	})
 
 	// Responses API 形状：instructions + input（字符串或 item 列表）。
 	if instr := gjson.GetBytes(body, "instructions"); instr.Type == gjson.String {
-		total += estimateTokensForText(instr.String())
+		total += estimateRoutingTextTokens(instr.String())
 	}
-	input := gjson.GetBytes(body, "input")
-	switch {
-	case input.Type == gjson.String:
-		total += estimateTokensForText(input.String())
-	case input.IsArray():
+	if input := gjson.GetBytes(body, "input"); input.IsArray() {
 		input.ForEach(func(_, item gjson.Result) bool {
 			total += openAIChatMessageTokenOverhead
-			content := item.Get("content")
-			switch {
-			case content.Type == gjson.String:
-				total += estimateTokensForText(content.String())
-			case content.IsArray():
-				content.ForEach(func(_, part gjson.Result) bool {
-					if t := strings.TrimSpace(part.Get("text").String()); t != "" {
-						total += estimateTokensForText(t)
-					}
-					return true
-				})
-			}
+			total += estimateOpenAIContentTokens(item.Get("content"), 0)
+			// function_call / function_call_output item 的文本字段
+			total += estimateRoutingTextTokens(item.Get("arguments").String())
+			total += estimateOpenAIContentTokens(item.Get("output"), 0)
 			return true
 		})
+	} else if input.Type == gjson.String {
+		total += estimateRoutingTextTokens(input.String())
 	}
 
 	// Anthropic 形状：顶层 system（字符串或 block 列表）；messages 复用上面的通用遍历。
-	system := gjson.GetBytes(body, "system")
-	switch {
-	case system.Type == gjson.String:
-		total += estimateTokensForText(system.String())
-	case system.IsArray():
-		system.ForEach(func(_, part gjson.Result) bool {
-			if t := strings.TrimSpace(part.Get("text").String()); t != "" {
-				total += estimateTokensForText(t)
-			}
-			return true
-		})
-	}
+	total += estimateOpenAIContentTokens(gjson.GetBytes(body, "system"), 0)
 
 	// tools/functions 定义随每次请求进入上下文，长 schema 不可忽略。
 	if tools := gjson.GetBytes(body, "tools"); tools.Exists() {
-		total += estimateTokensForText(tools.Raw)
+		total += estimateRoutingTextTokens(tools.Raw)
 	}
 
 	if total < 0 {
 		return 0
 	}
 	return total
+}
+
+// estimateOpenAIContentTokens 递归估算 content 值（字符串或 block 数组）的 token 数。
+// 覆盖所有承载文本的 block：text/thinking、tool_use.input、tool_result 的嵌套
+// content（Claude Code 上下文大头——上线首日曾因漏算它导致 /v1/messages 估算
+// 中位偏低到 0.59x）。图片类 block 跳过（计 raw 会被 base64 反向爆掉）。
+// depth 限制防御恶意深嵌套。
+func estimateOpenAIContentTokens(content gjson.Result, depth int) int {
+	if depth > 4 {
+		return 0
+	}
+	switch {
+	case content.Type == gjson.String:
+		return estimateRoutingTextTokens(content.String())
+	case content.IsArray():
+		total := 0
+		content.ForEach(func(_, part gjson.Result) bool {
+			total += estimateOpenAIContentPartTokens(part, depth)
+			return true
+		})
+		return total
+	}
+	return 0
+}
+
+func estimateOpenAIContentPartTokens(part gjson.Result, depth int) int {
+	switch part.Get("type").String() {
+	case "image", "image_url", "input_image", "document":
+		return 0
+	case "tool_use", "server_tool_use":
+		return estimateRoutingTextTokens(part.Get("name").String()) +
+			estimateRoutingTextTokens(part.Get("input").Raw)
+	case "tool_result", "web_search_tool_result":
+		return estimateOpenAIContentTokens(part.Get("content"), depth+1)
+	}
+	total := 0
+	if t := strings.TrimSpace(part.Get("text").String()); t != "" {
+		total += estimateRoutingTextTokens(t)
+	}
+	if t := strings.TrimSpace(part.Get("thinking").String()); t != "" {
+		total += estimateRoutingTextTokens(t)
+	}
+	if total == 0 {
+		if nested := part.Get("content"); nested.Exists() {
+			total += estimateOpenAIContentTokens(nested, depth+1)
+		}
+	}
+	return total
+}
+
+
+// estimateRoutingTextTokens 路由估算专用的文本 token 启发式。
+// 与共享的 estimateTokensForText 相比 ASCII 比率更紧(3.33 字符/token vs 4)：
+// 生产数据显示代码类英文文本按 4 估算偏低 ~17%(usage 导出 p90=0.83)。
+// CJK 仍按 1 token/rune(对 DeepSeek 词表约 +30% 高估, 安全方向)。
+func estimateRoutingTextTokens(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	runes := []rune(s)
+	if len(runes) == 0 {
+		return 0
+	}
+	ascii := 0
+	for _, r := range runes {
+		if r <= 0x7f {
+			ascii++
+		}
+	}
+	if float64(ascii)/float64(len(runes)) >= 0.8 {
+		return (len(runes)*3 + 9) / 10
+	}
+	return len(runes)
 }
 
 type openAIEstimatedPromptTokensCtxKey struct{}
