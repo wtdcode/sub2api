@@ -105,6 +105,7 @@ func runSetupServer() {
 
 	// Serve embedded frontend if available
 	if web.HasEmbeddedFrontend() {
+		r.Use(middleware.GzipStatic())
 		r.Use(web.ServeEmbeddedFrontend())
 	}
 

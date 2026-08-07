@@ -286,6 +286,19 @@
           <template #cell-capacity="{ row }">
             <AccountCapacityCell :account="row" />
           </template>
+          <template #cell-tpm="{ row }">
+            <CapacityBadge
+              v-if="(row.tpm_limit ?? 0) > 0"
+              :color-class="tpmBadgeClass(row)"
+              :current="formatTpm(row.current_tpm)"
+              :max="formatTpm(row.tpm_limit)"
+            >
+              <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+            </CapacityBadge>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
           <template #cell-status="{ row }">
             <div class="flex items-center gap-1.5">
               <AccountStatusIndicator :account="row" @show-temp-unsched="handleShowTempUnsched" />
@@ -514,6 +527,7 @@ import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
+import CapacityBadge from '@/components/account/CapacityBadge.vue'
 import UpstreamBillingRateCell from '@/components/account/UpstreamBillingRateCell.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -750,6 +764,16 @@ const autoRefreshIntervalLabel = (sec: number) => {
   if (sec === 15) return t('admin.accounts.refreshInterval15s')
   if (sec === 30) return t('admin.accounts.refreshInterval30s')
   return `${sec}s`
+}
+
+const formatTpm = (value: number | null | undefined): string => (value ?? 0).toLocaleString()
+
+const tpmBadgeClass = (account: Account): string => {
+  const limit = account.tpm_limit ?? 0
+  const current = account.current_tpm ?? 0
+  if (current >= limit) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+  if (current >= limit * 0.8) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
 }
 
 const formatSchedulerScore = (value: unknown): string => {
@@ -1123,6 +1147,7 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.updated_at !== next.updated_at ||
     current.current_concurrency !== next.current_concurrency ||
     current.current_window_cost !== next.current_window_cost ||
+    current.current_tpm !== next.current_tpm ||
     current.active_sessions !== next.active_sessions ||
     current.schedulable !== next.schedulable ||
     current.status !== next.status ||
@@ -1438,6 +1463,7 @@ const allColumns = computed(() => {
     { key: 'id', label: t('admin.accounts.columns.id'), sortable: true },
     { key: 'platform_type', label: t('admin.accounts.columns.platformType'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
+    { key: 'tpm', label: t('admin.accounts.columns.tpm'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
@@ -1855,7 +1881,8 @@ const mergeRuntimeFields = (oldAccount: Account, updatedAccount: Account): Accou
   ...updatedAccount,
   current_concurrency: updatedAccount.current_concurrency ?? oldAccount.current_concurrency,
   current_window_cost: updatedAccount.current_window_cost ?? oldAccount.current_window_cost,
-  active_sessions: updatedAccount.active_sessions ?? oldAccount.active_sessions
+  active_sessions: updatedAccount.active_sessions ?? oldAccount.active_sessions,
+  current_tpm: updatedAccount.current_tpm ?? oldAccount.current_tpm
 })
 
 const syncPaginationAfterLocalRemoval = () => {

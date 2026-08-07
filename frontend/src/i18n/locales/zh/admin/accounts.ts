@@ -102,6 +102,7 @@ export default {
         platform: '平台',
         type: '类型',
         capacity: '容量',
+        tpm: 'TPM (每分钟)',
         notes: '备注',
         priority: '优先级',
         billingRateMultiplier: '账号倍率',

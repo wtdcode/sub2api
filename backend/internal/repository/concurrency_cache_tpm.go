@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -137,4 +138,55 @@ func (c *concurrencyCache) SettleAccountTPM(ctx context.Context, accountID int64
 		return nil
 	}
 	return tpmSettleScript.Run(ctx, c.rdb, tpmKeys(accountID), requestID, actualTokens, estimateTokens).Err()
+}
+
+// GetAccountTPMUsageBatch 批量读取账号当前 60 秒窗口的 token 用量（已剪枝过期项）。
+// 只读路径，用 pipeline 而非 Lua：键按账号动态构造，避免 Redis Cluster CROSSSLOT。
+func (c *concurrencyCache) GetAccountTPMUsageBatch(ctx context.Context, accountIDs []int64) (map[int64]int64, error) {
+	out := make(map[int64]int64, len(accountIDs))
+	if c == nil || c.rdb == nil || len(accountIDs) == 0 {
+		return out, nil
+	}
+	now := time.Now().Unix()
+	pipe := c.rdb.Pipeline()
+	type entry struct {
+		id     int64
+		fresh  *redis.StringSliceCmd
+		tokens *redis.MapStringStringCmd
+	}
+	entries := make([]entry, 0, len(accountIDs))
+	for _, id := range accountIDs {
+		keys := tpmKeys(id)
+		entries = append(entries, entry{
+			id: id,
+			fresh: pipe.ZRangeByScore(ctx, keys[0], &redis.ZRangeBy{
+				Min: strconv.FormatInt(now-tpmWindowSecs, 10),
+				Max: "+inf",
+			}),
+			tokens: pipe.HGetAll(ctx, keys[1]),
+		})
+	}
+	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
+		return out, err
+	}
+	for _, e := range entries {
+		freshIDs, err := e.fresh.Result()
+		if err != nil || len(freshIDs) == 0 {
+			continue
+		}
+		tokens, err := e.tokens.Result()
+		if err != nil {
+			continue
+		}
+		var sum int64
+		for _, reqID := range freshIDs {
+			if raw, ok := tokens[reqID]; ok {
+				if n, convErr := strconv.ParseInt(raw, 10, 64); convErr == nil {
+					sum += n
+				}
+			}
+		}
+		out[e.id] = sum
+	}
+	return out, nil
 }

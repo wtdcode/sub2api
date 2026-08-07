@@ -72,6 +72,9 @@ func SetupRouter(
 
 	// Serve embedded frontend with settings injection if available
 	if web.HasEmbeddedFrontend() {
+		// 前端产物未预压缩：直连部署时首屏 ~1.9MB 明文 JS/CSS 会拖出秒级白屏。
+		// 仅包裹前端中间件，API 与网关流式转发不受影响。
+		r.Use(middleware2.GzipStatic())
 		frontendServer, err := web.NewFrontendServer(settingService) //nolint:staticcheck // SA4023: the !embed stub always errors; embed builds can return nil
 		if err != nil {                                              //nolint:staticcheck // SA4023: see above
 			log.Printf("Warning: Failed to create frontend server with settings injection: %v, using legacy mode", err)

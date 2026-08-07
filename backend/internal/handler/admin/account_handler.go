@@ -197,6 +197,9 @@ type AccountWithConcurrency struct {
 	CurrentWindowCost *float64 `json:"current_window_cost,omitempty"` // 当前窗口费用
 	ActiveSessions    *int     `json:"active_sessions,omitempty"`     // 当前活跃会话数
 	CurrentRPM        *int     `json:"current_rpm,omitempty"`         // 当前分钟 RPM 计数
+	// TPMLimit / CurrentTPM 仅对声明了 tpm_limit 的账号返回（当前 60 秒滑动窗口用量）。
+	TPMLimit   *int   `json:"tpm_limit,omitempty"`
+	CurrentTPM *int64 `json:"current_tpm,omitempty"`
 }
 
 type AccountSchedulerScore struct {
@@ -574,6 +577,20 @@ func (h *AccountHandler) List(c *gin.Context) {
 		schedulerScores, schedulerGroupScores = h.buildOpenAIAccountSchedulerScores(c.Request.Context(), accounts, schedulerFilterPool)
 	}
 
+	// 始终获取 TPM 窗口用量（Redis pipeline，仅限声明了 tpm_limit 的账号）
+	var tpmUsage map[int64]int64
+	if h.concurrencyService != nil {
+		tpmAccountIDs := make([]int64, 0, len(accounts))
+		for i := range accounts {
+			if accounts[i].GetTPMLimit() > 0 {
+				tpmAccountIDs = append(tpmAccountIDs, accounts[i].ID)
+			}
+		}
+		if len(tpmAccountIDs) > 0 {
+			tpmUsage = h.concurrencyService.GetAccountTPMUsageBatch(c.Request.Context(), tpmAccountIDs)
+		}
+	}
+
 	// 始终获取并发数（Redis ZCARD，极低开销）
 	if h.concurrencyService != nil {
 		if cc, ccErr := h.concurrencyService.GetAccountConcurrencyBatch(c.Request.Context(), accountIDs); ccErr == nil && cc != nil {
@@ -655,6 +672,12 @@ func (h *AccountHandler) List(c *gin.Context) {
 			CurrentConcurrency: concurrencyCounts[acc.ID],
 			SchedulerScore:     schedulerScores[acc.ID],
 			SchedulerScores:    schedulerGroupScores[acc.ID],
+		}
+		if limit := acc.GetTPMLimit(); limit > 0 {
+			limitCopy := limit
+			used := tpmUsage[acc.ID]
+			item.TPMLimit = &limitCopy
+			item.CurrentTPM = &used
 		}
 
 		// 添加窗口费用（仅当启用时）

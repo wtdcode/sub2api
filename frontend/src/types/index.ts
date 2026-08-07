@@ -1189,6 +1189,8 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
+  tpm_limit?: number | null // 声明的每分钟 token 预算（仅声明了 tpm_limit 的账号返回）
+  current_tpm?: number | null // 当前 60 秒滑动窗口 token 用量
 
   // 影子账号关系（spark 维度影子）
   parent_account_id?: number | null

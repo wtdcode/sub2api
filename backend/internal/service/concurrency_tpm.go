@@ -15,6 +15,8 @@ type AccountTPMCache interface {
 	ReserveAccountTPM(ctx context.Context, accountID int64, requestID string, estimateTokens int64, limit int64) (bool, error)
 	// SettleAccountTPM 用实际 token 结算并更新校准系数。
 	SettleAccountTPM(ctx context.Context, accountID int64, requestID string, actualTokens int64, estimateTokens int64) error
+	// GetAccountTPMUsageBatch 批量读取当前窗口用量（管理端展示）。
+	GetAccountTPMUsageBatch(ctx context.Context, accountIDs []int64) (map[int64]int64, error)
 }
 
 // tpmCacheReadTokenWeight cache_read token 的计权（前缀缓存命中几乎不耗
@@ -94,4 +96,22 @@ func (s *ConcurrencyService) SettleAccountTPM(ctx context.Context, accountID int
 	if err := tpmCache.SettleAccountTPM(bgCtx, accountID, requestID, actualTokens, estimateTokens); err != nil {
 		logger.LegacyPrintf("service.concurrency", "Warning: TPM settle failed for account %d: %v", accountID, err)
 	}
+}
+
+// GetAccountTPMUsageBatch 返回各账号当前 60 秒窗口内的 token 用量。
+// 缓存实现不支持 TPM 时返回空 map。
+func (s *ConcurrencyService) GetAccountTPMUsageBatch(ctx context.Context, accountIDs []int64) map[int64]int64 {
+	if s == nil || s.cache == nil || len(accountIDs) == 0 {
+		return nil
+	}
+	tpmCache, ok := s.cache.(AccountTPMCache)
+	if !ok {
+		return nil
+	}
+	usage, err := tpmCache.GetAccountTPMUsageBatch(ctx, accountIDs)
+	if err != nil {
+		logger.LegacyPrintf("service.concurrency", "Warning: TPM usage batch read failed: %v", err)
+		return nil
+	}
+	return usage
 }

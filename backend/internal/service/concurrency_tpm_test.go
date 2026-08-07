@@ -30,6 +30,14 @@ func (c tpmTestConcurrencyCache) SettleAccountTPM(_ context.Context, accountID i
 	return nil
 }
 
+func (c tpmTestConcurrencyCache) GetAccountTPMUsageBatch(_ context.Context, accountIDs []int64) (map[int64]int64, error) {
+	usage := make(map[int64]int64, len(accountIDs))
+	for _, id := range accountIDs {
+		usage[id] = 0
+	}
+	return usage, nil
+}
+
 func TestWeightedTPMTokens(t *testing.T) {
 	require.Equal(t, int64(0), WeightedTPMTokens(0, 0, 0, 0))
 	require.Equal(t, int64(300), WeightedTPMTokens(100, 100, 100, 0))
