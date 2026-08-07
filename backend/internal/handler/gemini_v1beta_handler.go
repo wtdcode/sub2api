@@ -455,6 +455,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				c,
 				account.ID,
 				selection.WaitPlan.MaxConcurrency,
+				selection.WaitPlan.TPMLimit,
 				selection.WaitPlan.Timeout,
 				stream,
 				&streamStarted,

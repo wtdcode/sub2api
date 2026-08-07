@@ -50,7 +50,7 @@ func TestEstimateOpenAIChatPromptTokens(t *testing.T) {
 }
 
 // Claude Code 形状：tool_result 嵌套 content 是上下文大头，必须被计入
-//（上线首日曾因漏算它导致 /v1/messages 估算中位偏低到 0.59x）。
+// （上线首日曾因漏算它导致 /v1/messages 估算中位偏低到 0.59x）。
 func TestEstimateOpenAIChatPromptTokens_AnthropicToolBlocks(t *testing.T) {
 	bigToolOutput := strings.Repeat("line of file content here ", 4000) // ~104k chars → ~31k tokens
 	body := []byte(`{"model":"m","system":[{"type":"text","text":"You are Claude Code."}],"messages":[

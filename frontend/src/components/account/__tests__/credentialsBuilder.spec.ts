@@ -4,13 +4,17 @@ import {
   CONTEXT_LENGTH_CREDENTIAL_KEY,
   HEADER_OVERRIDE_ENABLED_CREDENTIAL_KEY,
   HEADER_OVERRIDES_CREDENTIAL_KEY,
+  TPM_LIMIT_CREDENTIAL_KEY,
   applyAntigravityProjectID,
   applyContextLength,
   applyHeaderOverride,
   applyInterceptWarmup,
   applyPlanType,
+  applyTpmLimit,
   isContextLengthCapable,
+  isTpmLimitCapable,
   readContextLength,
+  readTpmLimit,
   buildHeaderOverridesObject,
   buildPlanTypeOptions,
   isCustomGrokBaseUrl,
@@ -449,6 +453,70 @@ describe('context_length helpers', () => {
       expect(readContextLength(creds)).toBe(400000)
       applyContextLength(creds, null)
       expect(readContextLength(creds)).toBeNull()
+    })
+  })
+})
+
+describe('tpm_limit helpers', () => {
+  describe('isTpmLimitCapable', () => {
+    it('only openai apikey/upstream accounts are eligible', () => {
+      expect(isTpmLimitCapable('openai', 'apikey')).toBe(true)
+      expect(isTpmLimitCapable('openai', 'upstream')).toBe(true)
+      expect(isTpmLimitCapable('openai', 'oauth')).toBe(false)
+      expect(isTpmLimitCapable('anthropic', 'apikey')).toBe(false)
+      expect(isTpmLimitCapable('antigravity', 'upstream')).toBe(false)
+    })
+  })
+
+  describe('applyTpmLimit', () => {
+    it('positive integer: sets tpm_limit as a number', () => {
+      const creds: Record<string, unknown> = { api_key: 'sk', base_url: 'url' }
+      applyTpmLimit(creds, 1000000)
+      expect(creds[TPM_LIMIT_CREDENTIAL_KEY]).toBe(1000000)
+      expect(creds.api_key).toBe('sk')
+      expect(creds.base_url).toBe('url')
+    })
+
+    it('empty value: does not add the key on create-style fresh credentials', () => {
+      const creds: Record<string, unknown> = { api_key: 'sk' }
+      applyTpmLimit(creds, null)
+      expect(TPM_LIMIT_CREDENTIAL_KEY in creds).toBe(false)
+    })
+
+    it('cleared/0/invalid value: deletes an existing key (edit-style)', () => {
+      for (const cleared of [null, undefined, 0, -1, 1.5, NaN]) {
+        const creds: Record<string, unknown> = {
+          api_key: 'sk',
+          [TPM_LIMIT_CREDENTIAL_KEY]: 600000
+        }
+        applyTpmLimit(creds, cleared as number | null | undefined)
+        expect(TPM_LIMIT_CREDENTIAL_KEY in creds).toBe(false)
+        expect(creds.api_key).toBe('sk')
+      }
+    })
+  })
+
+  describe('readTpmLimit', () => {
+    it('reads a positive integer back for hydration', () => {
+      expect(readTpmLimit({ [TPM_LIMIT_CREDENTIAL_KEY]: 600000 })).toBe(600000)
+    })
+
+    it('treats 0/absent/dirty values as unlimited (null)', () => {
+      expect(readTpmLimit({ [TPM_LIMIT_CREDENTIAL_KEY]: 0 })).toBeNull()
+      expect(readTpmLimit({ [TPM_LIMIT_CREDENTIAL_KEY]: -5 })).toBeNull()
+      expect(readTpmLimit({ [TPM_LIMIT_CREDENTIAL_KEY]: 1.5 })).toBeNull()
+      expect(readTpmLimit({ [TPM_LIMIT_CREDENTIAL_KEY]: '600000' })).toBeNull()
+      expect(readTpmLimit({})).toBeNull()
+      expect(readTpmLimit(undefined)).toBeNull()
+      expect(readTpmLimit(null)).toBeNull()
+    })
+
+    it('round-trips with applyTpmLimit', () => {
+      const creds: Record<string, unknown> = {}
+      applyTpmLimit(creds, 2000000)
+      expect(readTpmLimit(creds)).toBe(2000000)
+      applyTpmLimit(creds, null)
+      expect(readTpmLimit(creds)).toBeNull()
     })
   })
 })

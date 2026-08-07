@@ -110,7 +110,6 @@ func estimateOpenAIContentPartTokens(part gjson.Result, depth int) int {
 	return total
 }
 
-
 // estimateRoutingTextTokens 路由估算专用的文本 token 启发式。
 // 与共享的 estimateTokensForText 相比 ASCII 比率更紧(3.33 字符/token vs 4)：
 // 生产数据显示代码类英文文本按 4 估算偏低 ~17%(usage 导出 p90=0.83)。

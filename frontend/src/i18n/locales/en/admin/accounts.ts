@@ -811,6 +811,9 @@ export default {
       contextLength: 'Context Window (tokens)',
       contextLengthHint:
         'Optional. Declares the maximum context length this upstream supports; oversized requests will not be routed to this account',
+      tpmLimit: 'TPM Limit (tokens/min)',
+      tpmLimitHint:
+        'Optional. Token budget this upstream can absorb per minute; once exceeded, scheduling will queue or switch to other accounts',
       priority: 'Priority',
       priorityHint: 'Lower value accounts are used first',
       billingRateMultiplier: 'Billing Rate Multiplier',

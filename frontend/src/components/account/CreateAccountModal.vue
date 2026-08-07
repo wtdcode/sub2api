@@ -1166,6 +1166,15 @@
           <p class="input-hint">{{ t('admin.accounts.contextLengthHint') }}</p>
         </div>
 
+        <!-- TPM 上限声明（仅 openai apikey，后端读取 credentials.tpm_limit） -->
+        <div v-if="isTpmLimitCapable(form.platform, 'apikey')">
+          <label class="input-label">{{ t('admin.accounts.tpmLimit') }}</label>
+          <input v-model.number="apiKeyTpmLimit" type="number" min="1" step="1"
+            class="input" placeholder="1000000"
+            @input="apiKeyTpmLimit = (apiKeyTpmLimit && apiKeyTpmLimit >= 1) ? Math.floor(apiKeyTpmLimit) : null" />
+          <p class="input-hint">{{ t('admin.accounts.tpmLimitHint') }}</p>
+        </div>
+
         <!-- 上游倍率自动探测：全部 API-key 平台可用（所在区块已限定 apikey 类型） -->
         <div
           class="flex items-center justify-between gap-4 border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -3604,8 +3613,10 @@ import {
   applyContextLength,
   applyHeaderOverride,
   applyInterceptWarmup,
+  applyTpmLimit,
   isContextLengthCapable,
   isHeaderOverrideCapable,
+  isTpmLimitCapable,
   validateHeaderOverrideRows,
   type HeaderOverrideRow
 } from '@/components/account/credentialsBuilder'
@@ -3743,6 +3754,7 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
 const apiKeyContextLength = ref<number | null>(null) // openai apikey: 上下文窗口声明
+const apiKeyTpmLimit = ref<number | null>(null) // openai apikey: TPM 上限声明
 const upstreamBillingAutoProbeEnabled = ref(true)
 
 const syncPreviewCredentials = computed(() => {
@@ -4683,6 +4695,7 @@ const resetForm = () => {
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
   apiKeyContextLength.value = null
+  apiKeyTpmLimit.value = null
   upstreamBillingAutoProbeEnabled.value = true
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
@@ -5149,6 +5162,7 @@ const handleSubmit = async () => {
       credentials.compact_model_mapping = compactModelMapping
     }
     applyContextLength(credentials, apiKeyContextLength.value)
+    applyTpmLimit(credentials, apiKeyTpmLimit.value)
   }
 
   // Add pool mode if enabled

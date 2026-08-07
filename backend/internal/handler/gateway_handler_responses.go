@@ -216,6 +216,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				c,
 				account.ID,
 				selection.WaitPlan.MaxConcurrency,
+				selection.WaitPlan.TPMLimit,
 				selection.WaitPlan.Timeout,
 				reqStream,
 				&streamStarted,

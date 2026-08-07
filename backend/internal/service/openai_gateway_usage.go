@@ -164,6 +164,17 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageOutputTokens:   result.Usage.ImageOutputTokens,
 	}
 
+	// TPM 结算：用实际 token（加权）覆盖调度时的预留，并更新估算校准系数。
+	// 仅对声明了 tpm_limit 的账号写窗口，避免给所有账号引入额外 Redis 写。
+	if account != nil && s.concurrencyService != nil {
+		if limit := account.GetTPMLimit(); limit > 0 {
+			weighted := WeightedTPMTokens(actualInputTokens, result.Usage.OutputTokens,
+				result.Usage.CacheCreationInputTokens, result.Usage.CacheReadInputTokens)
+			s.concurrencyService.SettleAccountTPM(ctx, account.ID, weighted,
+				int64(openAIEstimatedPromptTokensFromContext(ctx)))
+		}
+	}
+
 	// Get rate multiplier
 	multiplier := 1.0
 	if s.cfg != nil {

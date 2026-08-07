@@ -538,8 +538,10 @@ func shouldClearStickySession(account *Account, requestedModel string) bool {
 type AccountWaitPlan struct {
 	AccountID      int64
 	MaxConcurrency int
-	Timeout        time.Duration
-	MaxWaiting     int
+	// TPMLimit 账号每分钟 token 预算（0=不限制）；排队等待者获取槽位时同样受其约束。
+	TPMLimit   int
+	Timeout    time.Duration
+	MaxWaiting int
 }
 
 type AccountSelectionResult struct {

@@ -256,7 +256,7 @@ func TestWaitForSlotWithPingTimeout_AccountAndUserAcquire(t *testing.T) {
 	t.Run("account_slot_acquired_after_retry", func(t *testing.T) {
 		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
 		streamStarted := false
-		release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, time.Second, false, &streamStarted, true)
+		release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, 0, time.Second, false, &streamStarted, true)
 		require.NoError(t, err)
 		require.NotNil(t, release)
 		require.False(t, streamStarted)
@@ -268,7 +268,7 @@ func TestWaitForSlotWithPingTimeout_AccountAndUserAcquire(t *testing.T) {
 	t.Run("user_slot_acquired_after_retry", func(t *testing.T) {
 		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
 		streamStarted := false
-		release, err := helper.waitForSlotWithPingTimeout(c, "user", 202, 3, time.Second, false, &streamStarted, true)
+		release, err := helper.waitForSlotWithPingTimeout(c, "user", 202, 3, 0, time.Second, false, &streamStarted, true)
 		require.NoError(t, err)
 		require.NotNil(t, release)
 		release()
@@ -421,7 +421,7 @@ func TestWaitForSlotWithPingTimeout_TimeoutAndStreamPing(t *testing.T) {
 		helper := NewConcurrencyHelper(concurrency, SSEPingFormatNone, 5*time.Millisecond)
 		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
 		streamStarted := false
-		release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, 130*time.Millisecond, false, &streamStarted, true)
+		release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, 0, 130*time.Millisecond, false, &streamStarted, true)
 		require.Nil(t, release)
 		var cErr *ConcurrencyError
 		require.ErrorAs(t, err, &cErr)
@@ -432,7 +432,7 @@ func TestWaitForSlotWithPingTimeout_TimeoutAndStreamPing(t *testing.T) {
 		helper := NewConcurrencyHelper(concurrency, SSEPingFormatComment, 10*time.Millisecond)
 		c, rec := newHelperTestContext(http.MethodPost, "/v1/messages")
 		streamStarted := false
-		release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, 70*time.Millisecond, true, &streamStarted, true)
+		release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, 0, 70*time.Millisecond, true, &streamStarted, true)
 		require.Nil(t, release)
 		var cErr *ConcurrencyError
 		require.ErrorAs(t, err, &cErr)
@@ -454,7 +454,7 @@ func TestWaitForSlotWithPingTimeout_ParentContextCanceled(t *testing.T) {
 	cancel()
 
 	streamStarted := false
-	release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, time.Second, false, &streamStarted, true)
+	release, err := helper.waitForSlotWithPingTimeout(c, "account", 101, 2, 0, time.Second, false, &streamStarted, true)
 	require.Nil(t, release)
 	require.ErrorIs(t, err, context.Canceled)
 	var cErr *ConcurrencyError
@@ -469,7 +469,7 @@ func TestWaitForSlotWithPingTimeout_AcquireError(t *testing.T) {
 	helper := NewConcurrencyHelper(concurrency, SSEPingFormatNone, 5*time.Millisecond)
 	c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
 	streamStarted := false
-	release, err := helper.waitForSlotWithPingTimeout(c, "account", 1, 1, 200*time.Millisecond, false, &streamStarted, true)
+	release, err := helper.waitForSlotWithPingTimeout(c, "account", 1, 1, 0, 200*time.Millisecond, false, &streamStarted, true)
 	require.Nil(t, release)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "redis unavailable")
@@ -484,7 +484,7 @@ func TestAcquireAccountSlotWithWaitTimeout_ImmediateAttemptBeforeBackoff(t *test
 	c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
 	streamStarted := false
 
-	release, err := helper.AcquireAccountSlotWithWaitTimeout(c, 301, 1, 30*time.Millisecond, false, &streamStarted)
+	release, err := helper.AcquireAccountSlotWithWaitTimeout(c, 301, 1, 0, 30*time.Millisecond, false, &streamStarted)
 	require.Nil(t, release)
 	var cErr *ConcurrencyError
 	require.ErrorAs(t, err, &cErr)
