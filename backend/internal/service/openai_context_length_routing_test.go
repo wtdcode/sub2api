@@ -228,3 +228,33 @@ func TestOpenAIScheduler_ExplicitPriorityOverridesWindowPreference(t *testing.T)
 		}
 	}
 }
+
+// 用户场景实锤：1M 并发打满、256k 空闲，来一个 900k 请求——绝不允许把装不下的
+// 请求塞给 256k；只能在 1M 上排队等待（原有 wait-plan 逻辑）。
+func TestOpenAIScheduler_LongPromptNeverSpillsToSmallWindowEvenWhenLargeIsSaturated(t *testing.T) {
+	resetOpenAIAdvancedSchedulerSettingCacheForTest()
+	groupID := int64(92007)
+	svc := newContextLengthTestServiceWithCache(contextLengthTestAccounts(), schedulerTestConcurrencyCache{
+		loadMap: map[int64]*AccountLoadInfo{
+			81002: {AccountID: 81002, LoadRate: 100, CurrentConcurrency: 10}, // 1M 打满
+			// 256k (81001) 空闲
+		},
+		acquireResults: map[int64]bool{81002: false}, // 1M 抢槽也失败
+	})
+
+	ctx := WithOpenAIEstimatedPromptTokens(context.Background(), 900000)
+	for i := 0; i < 5; i++ {
+		selection, _, err := svc.SelectAccountWithScheduler(
+			ctx, &groupID, "", "", "deepseek-v4-flash", nil, OpenAIUpstreamTransportAny, false,
+		)
+		if err != nil {
+			continue // 无可用账号错误也是合法结果（走 failover/重试）
+		}
+		require.NotNil(t, selection.Account)
+		require.Equal(t, int64(81002), selection.Account.ID,
+			"900k request must queue on the saturated 1M account, never leak to 256k")
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+	}
+}
